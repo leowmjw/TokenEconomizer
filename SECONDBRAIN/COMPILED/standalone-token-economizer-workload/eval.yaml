@@ -1,0 +1,60 @@
+version: 1
+source_skill: .agents/skills/standalone-token-economizer-workload
+steps:
+  - description: Validate the explicit log manifest and isolate repository state.
+    node_id: validate_log_manifest
+    phase: "1"
+    estimated_turns: {low: 1, high: 2}
+    estimated_tool_calls: {low: 1, high: 2}
+  - description: Discover the latest ten completed conversations per configured adapter.
+    node_id: discover_recent_conversations
+    phase: "1"
+    estimated_turns: {low: 1, high: 3}
+    estimated_tool_calls: {low: 1, high: 4}
+  - description: Determine whether explicit training consent is present.
+    node_id: determine_training_selection
+    phase: "1"
+    estimated_turns: {low: 1, high: 1}
+    estimated_tool_calls: {low: 1, high: 1}
+  - description: Present the catalog and wait for a human conversation selection when needed.
+    node_id: select_training_conversations
+    phase: "1"
+    estimated_turns: {low: 1, high: 2}
+    estimated_tool_calls: {low: 1, high: 2}
+  - description: Resolve selected conversation IDs without treating discovery as consent.
+    node_id: resolve_training_selection
+    phase: "1"
+    estimated_turns: {low: 1, high: 1}
+    estimated_tool_calls: {low: 1, high: 1}
+  - description: Read only the explicitly selected logs through the named harness adapter.
+    node_id: read_selected_harness_logs
+    phase: "2"
+    estimated_turns: {low: 1, high: 5}
+    estimated_tool_calls: {low: 1, high: 10}
+  - description: Normalize and validate session, tool, edit, failure, outcome, and usage events.
+    node_id: normalize_harness_events
+    phase: "3"
+    estimated_turns: {low: 1, high: 3}
+    estimated_tool_calls: {low: 1, high: 4}
+  - description: Fold corroborated facts, tool evidence, and failure-loop state.
+    node_id: fold_repository_learning
+    phase: "4"
+    estimated_turns: {low: 1, high: 4}
+    estimated_tool_calls: {low: 1, high: 5}
+  - description: Account for cache-aware execution and logged mechanism overhead.
+    node_id: compute_cache_aware_cost
+    phase: "6"
+    estimated_turns: {low: 1, high: 2}
+    estimated_tool_calls: {low: 1, high: 2}
+  - description: Render the transparent discovered/selected/read/learned review summary.
+    node_id: render_review_summary
+    phase: "6"
+    estimated_turns: {low: 1, high: 3}
+    estimated_tool_calls: {low: 1, high: 3}
+totals:
+  low: 10
+  high: 26
+notes: >-
+  These estimates describe the source skill as instructions, not the compiled
+  deterministic pipeline. The wide range is driven by adapter discovery,
+  selected log volume, and human selection; there is no per-item agent loop.

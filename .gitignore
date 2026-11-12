@@ -47,3 +47,23 @@ experiments/figures/
 
 # Pi installs this repository as a package and runs `npm install` in its checkout.
 /package-lock.json
+
+# env file
+.env
+
+# Editor/IDE
+.idea/
+.vscode/
+
+# Ignore Direnv
+.envrc*
+
+# Ignore SKILLS
+SHARED-SKILLS
+
+# Ignore mise
+mise.local.toml
+
+# Ignore any local Zed config
+.zed/
+
