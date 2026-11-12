@@ -1,0 +1,30 @@
+{
+  "schema": "rote-ir-provenance/v1",
+  "source_skill": ".agents/skills/standalone-token-economizer-workload",
+  "ir": "pipeline.yaml",
+  "ir_schema_ref": "../SHARED-SKILLS/rote/skills/rote-compile/references/ir-schema.md",
+  "compiled_at": "2026-11-12",
+  "source_files": {
+    "SKILL.md": "e13da54975ecbaf9d7d03d3fddce6a950a2506ff20ccd7515c3853b18574af66",
+    "references/standalone-contract.md": "e9b15573486e8ffc335d799649f82640dd9723deebb355e4b07c522f70c81f5b"
+  },
+  "dependency_files": {
+    "../README.md": "584a56b6c4c806ee40753f48b3473ed793d0f0f34c8b8abaa83084fc77e82cb7",
+    "../docs/ARCHITECTURE.md": "4e7477986bbc7df08111c6155d6705e8bea7240a0857f7070f37a8e39c3e46ea",
+    "../experiments/README.md": "540e1c956943211613aa960e55b5c9037a573b767814eac71b68b68078234b93",
+    "../experiments/te_bench/facade.py": "d29390fcf9d1fbac031d174cbf2248ca94594e5fc49c45247bf80a8cfd731f11",
+    "../experiments/te_bench/runner.py": "df56738ced1d8cd0f18c9058d946074360dd576ee893eaa137e721b9b90ae6a2",
+    "../experiments/te_bench/mechanism_arms.py": "7da403e52ca2390e4583b2975543b13dd26f04f18ef0a7716b51c065cbff3cbd",
+    "../tokeneconomizer/config.py": "1f3e26757bf24cd231e15d73a8e980ad7a5a7885f494a25ab71a68b24f9088bd",
+    "../tokeneconomizer/microskills/stage.py": "713dec6c8a825a88e62fd3e5c38976ea205f070c6de6783a608b552e221764e6",
+    "../tokeneconomizer/microskills/distiller.py": "cc1de32a27594db41b5c4bbc51feaa101101154404916d7efae2cbb4413efc3a",
+    "../tokeneconomizer/microskills/lifecycle.py": "cae8db6681956c35d7f73bf9e43b466f98f71c341c0c6c5b6ce465c216f3db",
+    "../tokeneconomizer/microskills/observe.py": "4c1d01ed618da2942004557d047efedd7f34e5cb4563038dc8a2013806180607",
+    "../tokeneconomizer/toolprune/stage.py": "4eb78b1c76f34482fe38bc9d06e113fcbffafd93ef451ae669ec989ce2264d89",
+    "../tokeneconomizer/toolprune/tools.py": "47b65af795efd491387fe7931193e9c086337b7f3242784ef290aaf6f0fb289e",
+    "../tokeneconomizer/loopguard/rules.py": "c597d058bbd211c2b15252d9917ed2950413094fbd3a4db40626e6d4f105340b",
+    "../tokeneconomizer/loopguard/state.py": "e3a5841bd6a00c008e6fde313d2208958b8db255632a6c84bda22d7ea4686914",
+    "../tokeneconomizer/ledger.py": "137c184558084b5517d56f2054bf0b6eb8c835c0c6c0c5e39773470aafe",
+    "../tokeneconomizer/pricing.py": "7aa0d47bbf21779231633d02ed01f4c613db5a5e7459cf0d308075381ef5e5ba"
+  }
+}

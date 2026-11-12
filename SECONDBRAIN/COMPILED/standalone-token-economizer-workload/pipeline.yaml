@@ -1,0 +1,249 @@
+name: standalone-token-economizer-workload
+version: "0.1.0"
+source_skill: ../../.agents/skills/standalone-token-economizer-workload
+description: |
+  Replay explicitly selected coding-agent conversation logs through a harness
+  adapter, normalize them into a leakage-safe evidence stream, fold
+  repository-scoped facts/tool evidence/failure-loop recommendations, account
+  for cache-aware logged usage, and render an auditable summary. Discovery and
+  review are read-only front-end operations; training never assumes consent
+  from the latest-conversation list.
+
+config:
+  on_failure: fail_closed
+  hitl:
+    default_timeout: 7d
+
+input:
+  type: StandaloneLogManifest
+  required:
+    - repository
+    - stream_id
+    - harness
+    - log_sources
+    - state_dir
+    - model
+  optional:
+    - operation
+    - selected_conversation_ids
+    - seed
+    - policy_state
+  input_schema:
+    type: object
+    title: StandaloneLogManifest
+    additionalProperties: false
+    required: [repository, stream_id, harness, log_sources, state_dir, model]
+    properties:
+      repository: {type: string, minLength: 1}
+      stream_id: {type: string, minLength: 1}
+      harness: {type: string, minLength: 1}
+      log_sources:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [path]
+          properties:
+            path: {type: string, minLength: 1}
+            format: {type: string}
+      state_dir: {type: string, minLength: 1}
+      model: {type: string, minLength: 1}
+      operation: {enum: [list, remembered, review, train]}
+      selected_conversation_ids:
+        type: array
+        items: {type: string, minLength: 1}
+      seed: {}
+      policy_state: {type: object}
+
+nodes:
+  - id: validate_log_manifest
+    kind: pure_function
+    phase: "1"
+    source:
+      section: "1. Validate, discover, and isolate"
+    description: Validate repository, stream, adapter, source, state, operation, and model inputs.
+    impl: extracted/core.py:validate_log_manifest
+    inputs:
+      manifest: pipeline.input
+    input:
+      manifest: StandaloneLogManifest
+    output: ValidatedManifest
+    mandatory: true
+
+  - id: discover_recent_conversations
+    kind: external_call
+    phase: "1"
+    source:
+      section: "Default CLI behavior and transparency"
+    description: Discover at most the latest ten completed conversations through the named adapter.
+    impl: extracted/adapters.py:discover_recent_conversations
+    inputs:
+      manifest: validate_log_manifest.output
+    input:
+      manifest: ValidatedManifest
+    output: ConversationCatalog
+    constants:
+      recent_limit: 10
+    timeout: 30s
+    retry:
+      max: 1
+      backoff: constant
+
+  - id: determine_training_selection
+    kind: pure_function
+    phase: "1"
+    source:
+      section: "1. Validate, discover, and isolate"
+    description: Determine whether explicit training consent is still required.
+    impl: extracted/core.py:determine_training_selection
+    inputs:
+      manifest: validate_log_manifest.output
+      discovery: discover_recent_conversations.output
+    input:
+      manifest: ValidatedManifest
+      discovery: ConversationCatalog
+    output: SelectionDecision
+
+  - id: select_training_conversations
+    kind: hitl_gate
+    phase: "1"
+    source:
+      section: "Default CLI behavior and transparency"
+    description: Present the recent catalog and wait for explicit conversation selection when training IDs were omitted.
+    when: determine_training_selection.output.needs_user_selection
+    inputs:
+      catalog: discover_recent_conversations.output
+    input:
+      catalog: ConversationCatalog
+    output:
+      conversation_ids: list[string]
+    signal: training_selection
+    timeout: 7d
+
+  - id: resolve_training_selection
+    kind: pure_function
+    phase: "1"
+    source:
+      section: "1. Validate, discover, and isolate"
+    description: Resolve explicit conversation IDs or the human selection signal without implicit consent.
+    impl: extracted/core.py:resolve_training_selection
+    inputs:
+      explicit_ids: pipeline.input.selected_conversation_ids
+      selection: select_training_conversations.output
+    input:
+      explicit_ids: list[string]
+      selection: SelectionSignal
+    output: ResolvedSelection
+    mandatory: true
+
+  - id: read_selected_harness_logs
+    kind: external_call
+    phase: "2"
+    source:
+      section: "2. Read through the named adapter"
+    description: Read only explicitly selected conversations through the harness adapter.
+    impl: extracted/adapters.py:read_selected_harness_logs
+    inputs:
+      manifest: validate_log_manifest.output
+      selection: resolve_training_selection.output
+    input:
+      manifest: ValidatedManifest
+      selection: ResolvedSelection
+    output: AdapterEvents
+    timeout: 5m
+    retry:
+      max: 1
+      backoff: constant
+
+  - id: normalize_harness_events
+    kind: pure_function
+    phase: "3"
+    source:
+      section: "3. Normalize and validate events"
+    description: Validate adapter fields, ordering, and leakage-safe normalized event defaults.
+    impl: extracted/core.py:normalize_harness_events
+    inputs:
+      log_payload: read_selected_harness_logs.output
+    input:
+      log_payload: AdapterEvents
+    output: list[NormalizedEvent]
+    mandatory: true
+
+  - id: fold_repository_learning
+    kind: pure_function
+    phase: "4"
+    source:
+      section: "4. Fold repository learning"
+    description: Fold facts, tool evidence, and failure-loop recommendations into reversible state.
+    impl: extracted/core.py:fold_repository_learning
+    inputs:
+      events: normalize_harness_events.output
+      policy_state: pipeline.input.policy_state
+    input:
+      events: list[NormalizedEvent]
+      policy_state: PolicyState
+    output: LearningResult
+    mandatory: true
+
+  - id: compute_cache_aware_cost
+    kind: pure_function
+    phase: "6"
+    source:
+      section: "6. Account for cost and summarize"
+    description: Compute cache-aware execution and logged mechanism overhead without hiding unknown usage.
+    impl: extracted/core.py:compute_cache_aware_cost
+    inputs:
+      events: normalize_harness_events.output
+      model: pipeline.input.model
+    input:
+      events: list[NormalizedEvent]
+      model: string
+    output: CostResult
+    mandatory: true
+
+  - id: render_review_summary
+    kind: pure_function
+    phase: "6"
+    source:
+      section: "6. Account for cost and summarize"
+    description: Render discovered, selected, read, learned, remembered, cost, and redirect information.
+    impl: extracted/core.py:render_review_summary
+    inputs:
+      manifest: validate_log_manifest.output
+      discovery: discover_recent_conversations.output
+      selection: resolve_training_selection.output
+      events: normalize_harness_events.output
+      learning: fold_repository_learning.output
+      cost: compute_cache_aware_cost.output
+    input:
+      manifest: ValidatedManifest
+      discovery: ConversationCatalog
+      selection: ResolvedSelection
+      events: list[NormalizedEvent]
+      learning: LearningResult
+      cost: CostResult
+    output: ReviewSummary
+    mandatory: true
+
+edges:
+  - {from: validate_log_manifest, to: discover_recent_conversations}
+  - {from: validate_log_manifest, to: determine_training_selection}
+  - {from: discover_recent_conversations, to: determine_training_selection}
+  - {from: determine_training_selection, to: select_training_conversations}
+  - {from: determine_training_selection, to: resolve_training_selection}
+  - {from: select_training_conversations, to: resolve_training_selection}
+  - {from: validate_log_manifest, to: read_selected_harness_logs}
+  - {from: resolve_training_selection, to: read_selected_harness_logs}
+  - {from: read_selected_harness_logs, to: normalize_harness_events}
+  - {from: normalize_harness_events, to: fold_repository_learning}
+  - {from: normalize_harness_events, to: compute_cache_aware_cost}
+  - {from: validate_log_manifest, to: render_review_summary}
+  - {from: discover_recent_conversations, to: render_review_summary}
+  - {from: resolve_training_selection, to: render_review_summary}
+  - {from: normalize_harness_events, to: render_review_summary}
+  - {from: fold_repository_learning, to: render_review_summary}
+  - {from: compute_cache_aware_cost, to: render_review_summary}
+
+entry_nodes: [validate_log_manifest]
+exit_nodes: [render_review_summary]
